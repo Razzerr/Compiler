@@ -1,6 +1,5 @@
 DECLARE 
-    a(0:10); b; c;
+    a;
 IN
-    c := 2;
-    a(b) := a(c);
+    a := 2/2;
 END

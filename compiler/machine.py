@@ -50,51 +50,45 @@ class outputCode():
     def storeRegAtCell(self, reg, cell):
         self.setRegValue('A', cell)
         self.storeReg(reg)
-  
-    #a = val
-    def storeValAtCell(self, memCell, val):
-        self.setRegValue('B', val)
-        self.setRegValue('A', memCell)
-        self.storeReg('B')
 
-    # a(b) = val (b - user input)
-    def storeValAtUnknownCell(self, arrayCell, indexCell, val):
-        self.setRegValue('C', val)
-        self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'B')
-        self.storeReg('C')
-
-    # a = c (c - user input)
-    def storeUnknownValAtCell(self, memCell, valMemCell):
-        self.setRegValue('A', valMemCell)
-        self.loadToReg('B')
-        self.setRegValue('A', memCell)
-        self.storeReg('B')
-
-    # a(b) = c (b, c - user inputs)
-    def storeUnknownValAtUnknownCell(self, arrayCell, indexCell, valMemCell):
-        self.setRegValue('A', valMemCell) 
-        self.loadToReg('C') # C -> val
-        self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'B') # A -> &a(b)
-        self.storeReg('C') # &a(b) -> val
-
-    # a = c(d) (d - user input)
-    def storeUnknownArrValAtCell(self, memCell, valArrayCell, valIndexCell):
-        self.setRegToUnknownIndex(valArrayCell, valIndexCell, 'A', 'B') # A -> &c(d)
-        self.loadToReg('B') # B -> val
-        self.setRegValue('A', memCell) # A -> &a
-        self.storeReg('B') # &a -> val 
-
-    # a(b) = c(d) (b, d - user inputs)
-    def storeUnknownArrValAtUnknownCell(self, arrayCell, indexCell, valArrayCell, valIndexCell):
-        self.setRegToUnknownIndex(valArrayCell, valIndexCell, 'A', 'B') # A -> &c(d)
-        self.loadToReg('C') # C -> val
-        self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'B') # A -> &a(b)
-        self.storeReg('C') # &a(b) -> val
-
-    def readToMem(self, memCell):
+    def storeToMem(self, memCell):
         self.code += ['GET B']
         self.setRegValue('A', memCell)
         self.code += ['STORE B']
+
+    def storeToUnknownCell(self, arrayCell, indexCell):
+        self.code += ['GET B']
+        self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'H')
+        self.storeReg('B')
+
+    # reg1 - iterator
+    def multiplyRegByrReg(self, reg1, reg2, regRes, l1, l2):
+        self.clearReg(regRes)
+        self.code += [l1 + ":"]
+        self.code += ["JZERO " + reg1 + " " + l2]
+        self.addToRegFromReg(regRes, reg2)
+        self.code += ['DEC ' + reg1]
+        self.code += ['JUMP ' + l1]
+        self.code += [l2 + ":"]
+
+    def greaterEqual(self, reg1, reg2):
+        self.code += ['INC ' + reg1]
+        self.code += ['SUB ' + reg1 + " " + reg2]
+
+    def divideRegByReg(self, regDiv, regd, regQuo, regTemp, l1, l2, l3):
+        self.code += ['JZERO ' + regd + ' ' + l3]
+        self.code += [l1 + ':']
+        self.code += ['COPY ' + regTemp + ' ' + regDiv]
+        self.greaterEqual(regTemp, regd)
+        self.code += ['JZERO ' + regTemp + ' ' + l2]
+        self.code += ['INC ' + regQuo]
+        self.code += ['SUB ' + regDiv + ' ' + regd]
+        self.code += ['JUMP ' + l1]
+        self.code += [l3 + ':']
+        self.code += ['SUB ' + regDiv + ' ' + regDiv]
+        self.code += ['SUB ' + regQuo + ' ' + regQuo]
+        self.code += [l2 + ':']
+
 
 class machine():
     memIndex = 0
@@ -107,6 +101,7 @@ class machine():
     def __init__(self, parseTree):
         self.parseTree = parseTree
         self.machineCode = ''
+        self.labels = 0
 
         # Declarations
         for i in parseTree[1]:
@@ -137,18 +132,21 @@ class machine():
     def commandHandler(self, params):
         return getattr(self, params[0])(params)
 
-    #@TODO offset
-    def tokenToReg(self, token, reg):
-        typeOf = token[0]
+    def genLabel(self):
+        self.labels += 1
+        return 'label' + str(self.labels)
 
+    #@TODO offset
+    def tokenToReg(self, token, regOut):
+        typeOf = token[0]
         if typeOf == 'value':
             value = int(token[1])
-            self._out_.setRegValue(reg, value)
+            self._out_.setRegValue(regOut, value)
 
         elif typeOf == 'integer':
             pidentifier = token[1]
             memCell = self.memory[pidentifier]
-            self._out_.setRegToMemCell(memCell, reg)
+            self._out_.setRegToMemCell(memCell, regOut)
             
         elif typeOf == 'integerArray':
             arrayIdentifier = token[1]
@@ -157,23 +155,50 @@ class machine():
             arrayIndex = token[2]
             typeOfIndex = arrayIndex[0]
             if typeOfIndex == 'value':
-                indexValue = int(token[1])
-                self._out_.setRegToMemCell(arrayCell + indexValue, reg)
+                indexValue = int(arrayIndex[1])
+                self._out_.setRegToMemCell(arrayCell + indexValue, regOut)
 
             elif typeOfIndex == 'integer':
                 indexCell = self.memory[arrayIndex[1]]
-                self._out_.setRegToUnknownIndex(arrayCell, indexCell, reg, 'H')
+                self._out_.setRegToUnknownIndex(arrayCell, indexCell, regOut, 'H')
+        
+        elif typeOf == 'add':
+            self.tokenToReg(token[1], regOut)
+            self.tokenToReg(token[2], 'H')
+            self._out_.code += ['ADD ' + regOut + ' H']
+
+        elif typeOf == 'sub':
+            self.tokenToReg(token[1], regOut)
+            self.tokenToReg(token[2], 'H')
+            self._out_.code += ['SUB ' + regOut + ' H']
+
+        elif typeOf == 'mul':
+            self.tokenToReg(token[1], 'G')
+            self.tokenToReg(token[2], 'H')
+            self._out_.multiplyRegByrReg('G', 'H', regOut, self.genLabel(), self.genLabel())
+
+        elif typeOf == 'div':
+            self.tokenToReg(token[1], 'G')
+            self.tokenToReg(token[2], 'H')
+            self._out_.divideRegByReg('G', 'H', regOut, 'F', self.genLabel(), self.genLabel(), self.genLabel())
+
+        elif typeOf == 'mod':
+            self.tokenToReg(token[1], 'G')
+            self.tokenToReg(token[2], 'H')
+            self._out_.divideRegByReg('G', 'H', 'F', regOut, self.genLabel(), self.genLabel(), self.genLabel())
+
+
 
     def assign(self, params):
+        print(params)
         identifier = params[1]
 
         typeOfIdentifier = identifier[0]
         pidentifier = identifier[1]
 
         expression = params[2]
-        typeOfExpression = expression[0]
         
-        if (typeOfExpression in ['value', 'integer', 'integerArray']) and pidentifier in self.variables:
+        if pidentifier in self.variables:
             self.tokenToReg(expression, 'C')
             identifierCell = self.memory[pidentifier]
 
@@ -191,118 +216,26 @@ class machine():
                     indexCell = self.memory[indexIdentifier]
                     self._out_.setRegToUnknownIndex(identifierCell, indexCell, 'A', 'H')
                     self._out_.storeReg('C')
-            
-
-    def assign_old(self, params):
-        identifier = params[1]
-        typeOf = identifier[0]
-
-        if typeOf == 'integer':
-            self.assignInt(params)
-        elif typeOf == 'integerArray':
-            self.assignArray(params)
-
-    def assignInt(self, params):
-        identifier = params[1]
-        pidentifier = identifier[1]
-
-        expression = params[2]
-        typeOf = expression[0]
-        if pidentifier in self.variables:
-            # Expression is a number
-            if typeOf == 'value':
-                self._out_.storeValAtCell(self.memory[pidentifier], int(expression[1]))
-            # Expression is a variable
-            elif typeOf == 'integer':
-                identifierValue = expression[1]
-                self._out_.storeUnknownValAtCell(self.memory[pidentifier], self.memory[identifierValue])
-            # Expression is an array
-            elif typeOf == 'integerArray':
-                identifierValue = expression[1]
-                typeOfIndex = expression[2][0]
-                if typeOfIndex == 'value':
-                    identifierValueIndex = int(expression[2][1])
-                    self._out_.storeUnknownValAtCell(self.memory[pidentifier], self.memory[identifierValue] + identifierValueIndex)
-                elif typeOfIndex == 'integer':
-                    identifierValueIndex = expression[2][1]
-                    self._out_.storeUnknownArrValAtCell(self.memory[pidentifier], self.memory[identifierValue], self.memory[identifierValueIndex])
-
-    def assignArray(self, params):
-        identifier = params[1]
-        pidentifier = identifier[1]
-
-        identifierIndex = identifier[2]
-        typeOfIdentifierIndex = identifierIndex[0]
-
-        expression = params[2]
-        typeOfIndex = expression[0]
-
-        if pidentifier in self.variables:
-            if typeOfIdentifierIndex == 'value':
-                identifierIndex = int(identifierIndex[1])
-                # Expression is a number
-                if typeOfIndex == 'value':
-                    self._out_.storeValAtCell(self.memory[pidentifier] + identifierIndex - self.variables[pidentifier].indexLow,
-                     int(expression[1]))
-                # Expression is a variable
-                elif typeOfIndex == 'integer':
-                    pidentifierValue = expression[1]
-                    self._out_.storeUnknownValAtCell(self.memory[pidentifier] + identifierIndex - self.variables[pidentifier].indexLow,
-                     self.memory[pidentifierValue])
-                # Expression is an array
-                elif typeOfIndex == 'integerArray':
-                    pidentifierValue = expression[1]
-                    typeOfValueIndex = expression[2][0]
-                    if typeOfValueIndex == 'value':
-                        pidentifierIndex = int(expression[2][1])
-                        self._out_.storeUnknownValAtCell(self.memory[pidentifier] + identifierIndex - self.variables[pidentifier].indexLow,
-                         self.memory[pidentifierValue] + pidentifierIndex)
-                    elif typeOfValueIndex == 'integer':
-                        pidentifierIndex = expression[2][1]
-                        self._out_.storeUnknownArrValAtCell(self.memory[pidentifier] + identifierIndex - self.variables[pidentifier].indexLow,
-                         self.memory[pidentifierValue], self.memory[pidentifierIndex])
-
-            if typeOfIdentifierIndex == 'integer':
-                pidentifierIdentifierIndex = self.memory[identifierIndex[1]]
-                # Expression is a number
-                if typeOfIndex == 'value':
-                    self._out_.storeValAtUnknownCell(self.memory[pidentifier] - self.variables[pidentifier].indexLow,
-                     pidentifierIdentifierIndex, int(expression[1]))
-                # Expression is a variable
-                elif typeOfIndex == 'integer':
-                    pidentifierValue = expression[1]
-                    print(pidentifierIdentifierIndex)
-                    self._out_.storeUnknownValAtUnknownCell(self.memory[pidentifier]- self.variables[pidentifier].indexLow,
-                     pidentifierIdentifierIndex, self.memory[pidentifierValue])
-                # Expression is an array
-                elif typeOfIndex == 'integerArray':
-                    pidentifierValue = expression[1]
-                    typeOfValueIndex = expression[2][0]
-                    if typeOfValueIndex == 'value':
-                        pidentifierIndex = int(expression[2][1])
-                        self._out_.storeUnknownValAtUnknownCell(self.memory[pidentifier]- self.variables[pidentifier].indexLow,
-                         pidentifierIdentifierIndex, self.memory[pidentifierValue] + pidentifierIndex)
-                    elif typeOfValueIndex == 'integer':
-                        pidentifierIndex = expression[2][1]
-                        self._out_.storeUnknownArrValAtUnknownCell(self.memory[pidentifier]- self.variables[pidentifier].indexLow,
-                         pidentifierIdentifierIndex, self.memory[pidentifierValue], self.memory[pidentifierIndex])
 
     def read(self, params):
         identifier = params[1]
 
-        typeOf = identifier[0]
+        typeOfIdentifier = identifier[0]
         pidentifier = identifier[1]
-        identifierIndex = identifier[2]
+        index = identifier[2]
 
+        arrayCell = self.memory[pidentifier]
         if pidentifier in self.variables:
-            if typeOf == 'integerArray':
+            if typeOfIdentifier == 'integerArray':
                 typeOfIndex = identifierIndex[0]
                 if typeOfIndex == 'value':
-                    identifierIndex = int(identifierIndex[1])
-                    self._out_.readToMem(self.memory[pidentifier] + identifierIndex - self.variables[pidentifier].indexLow)
+                    indexValue = int(identifierIndex[1])
+                    self._out_.storeToMem(arrayCell + indexValue)
                 elif typeOfIndex == 'integer':
-                    pass
+                    indexID = identifierIndex[1]
+                    indexCell = self.memory[indexID]
+                    self._out_.storeToUnknownCell(arrayCell, indexCell)
 
-            elif typeOf == 'integer':
-                self._out_.readToMem(self.memory[pidentifier])
+            elif typeOfIdentifier == 'integer':
+                self._out_.storeToMem(arrayCell)
                 
