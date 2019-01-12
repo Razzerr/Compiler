@@ -1,6 +1,7 @@
 import sys
 from compiler.lexer import lex
 from compiler.parser import bison
+from compiler.machine_old import machine
 
 def readList(arr, level):
     level += 1
@@ -21,9 +22,8 @@ if __name__ == '__main__':
         try:
             file = open(sys.argv[1], 'r')
             data = file.read()
-            readList(parser.parse(lexer.tokenize(data)), -1)
-
-            # parser.parse(lexer.tokenize(data))
+            mach = machine(parser.parse(lexer.tokenize(data)))
+            # print(parser.parse(lexer.tokenize(data)))
         except FileNotFoundError:
             print("File not found!")
     else:

@@ -1,0 +1,6 @@
+DECLARE 
+    a(0:10); b;
+IN
+    READ b;
+    a(b) := 1;
+END
