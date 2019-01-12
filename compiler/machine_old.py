@@ -90,6 +90,11 @@ class outputCode():
         self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'B') # A -> &a(b)
         self.storeReg('C') # &a(b) -> val
 
+    def readToMem(self, memCell):
+        self.code += ['GET B']
+        self.setRegValue('A', memCell)
+        self.code += ['STORE B']
+
 class machine():
     memIndex = 0
     memory = {}
@@ -147,18 +152,11 @@ class machine():
         pidentifierIndex = params[2]
 
         arrayIndex = self.commandHandler(pidentifierIndex)
-        val = self.variables[pidentifier].value[arrayIndex]
-        return int(val) if val != None else val 
-
-    def getExpressionAddress(self, params):
-        pidentifier = params[1]
-        typeOf = params[0]
-        print(params)
-        if typeOf == 'integer':
-            return self.memory[pidentifier]
+        if (arrayIndex != -1):
+            val = self.variables[pidentifier].value[arrayIndex]
         else:
-            # secondaryExpression = 
-            return self.memory[pidentifier]
+            val = -1
+        return int(val) if val != None else val 
 
     def assignInt(self, params):
         identifier = params[1]
@@ -168,20 +166,21 @@ class machine():
         expressionValue = self.commandHandler(expression)
 
         if pidentifier in self.variables:
+            print(expression)
             #Value of PIDENTIFIER set to expression value (-1 if unknown - user input)
             self.variables[pidentifier].value = (expressionValue if expressionValue != -1 else -1)
             if (expressionValue != -1):
                 #Storing number from a known memory cell
                 self._out_.storeValAtCell(self.memory[pidentifier], expressionValue)
-            else:
+            else: 
                 typeOfValue = expression[0]
                 pidentifierValue = expression[1]
-                if typeOf == 'integer':
+                if typeOfValue == 'integer':
                     #Storing number from an unknown memory cell (user input)
                     self._out_.storeUnknownValAtCell(self.memory[pidentifier], self.memory[pidentifierValue])
-                elif typeOf == 'integerArray':
+                elif typeOfValue == 'integerArray':
                     pidentifierIndex = expression[2][1]
-                    self._out_.storeUnknownArrValAtCell(self.memory[pidentifier], self.memory[pidentifierValue], self.memory[pidentifierValueIndex])
+                    self._out_.storeUnknownArrValAtCell(self.memory[pidentifier], self.memory[pidentifierValue], self.memory[pidentifierIndex])
 
     def assignArray(self, params):
         identifier = params[1]
@@ -285,5 +284,5 @@ class machine():
                     print("Index out of bounds!", file=sys.stderr)                    
             else:
                 self.variables[pidentifier].value = -1
-                self._out_.read(self.memory[pidentifier])
+                self._out_.readToMem(self.memory[pidentifier])
                 

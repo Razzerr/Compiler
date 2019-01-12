@@ -1,18 +1,7 @@
 import sys
 from compiler.lexer import lex
 from compiler.parser import bison
-from compiler.machine_old import machine
-
-def readList(arr, level):
-    level += 1
-    for i in arr:
-        if type(i) == type([]) or type(i) == type(()):
-            readList(i, level)
-        else:
-            print(' '*level, "|--", end = '')
-            print("- ", i)
-    print(" "*level, "-----")
-    level -= 1
+from compiler.machine import machine
 
 if __name__ == '__main__':
     lexer = lex()
