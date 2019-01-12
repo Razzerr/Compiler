@@ -23,38 +23,72 @@ class arrayType():
 class outputCode():
     def __init__(self):
         self.code = []
-    
-    def clearRegister(self, register):
-        self.code += ["SUB " + register + " " + register]
 
-    def setValue(self, register, value):
-        self.clearRegister(register)
-        while value > 0:
-            self.code += ["INC " + register]
-            value -= 1
-    
-    def storeNum(self, memCell, value):
-        self.setValue('A', memCell)
-        self.setValue('B', value)
-        self.code += ['STORE B']
+    #SUB X X
+    def clearReg(self, reg):                    
+        self.code += ["SUB " + reg + " " + reg]
 
-    def storeNumFromMem(self, memCell, memCellFrom):
-        self.setValue('A', memCellFrom)
-        self.code += ['LOAD B']
-        self.setValue('A', memCell)
-        self.code += ['STORE B']
+    #INC X * val
+    def setRegValue(self, reg, val):
+        self.clearReg(reg)
+        while val > 0:
+            self.code += ["INC " + reg]
+            val -= 1
 
-    def read(self, memCell):
-        self.code += ['GET B']
-        self.setValue('A', memCell)
-        self.code += ['STORE B']
-        
+    def storeReg(self, reg):
+        self.code += ['STORE ' + reg]
 
-    def loadFromMemToReg(self, reg, memCell):
-        self.setValue('A', memCell)
-        self.code += ['GET ' + reg]
+    def loadToReg(self, reg):
+        self.code += ['LOAD ' + reg]
 
+    def addToRegFromReg(self, regTo, regFrom):
+        self.code += ['ADD ' + regTo + ' ' + regFrom]
 
+    def setRegToUnknownIndex(self, arrayCell, indexCell, regTo, regTemp):
+        self.setRegValue('A', indexCell)
+        self.loadToReg(regTemp)
+        self.setRegValue(regTo, arrayCell)
+        self.addToRegFromReg(regTo, regTemp)
+  
+    #a = val
+    def storeValAtCell(self, memCell, val):
+        self.setRegValue('B', val)
+        self.setRegValue('A', memCell)
+        self.storeReg('B')
+
+    # a(b) = val (b - user input)
+    def storeValAtUnknownCell(self, arrayCell, indexCell, val):
+        self.setRegValue('C', val)
+        self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'B')
+        self.storeReg('C')
+
+    # a = c (c - user input)
+    def storeUnknownValAtCell(self, memCell, valMemCell):
+        self.setRegValue('A', valMemCell)
+        self.loadToReg('B')
+        self.setRegValue('A', memCell)
+        self.storeReg('B')
+
+    # a(b) = c (b, c - user inputs)
+    def storeUnknownValAtUnknownCell(self, arrayCell, indexCell, valMemCell):
+        self.setRegValue('A', valMemCell) 
+        self.loadToReg('C') # C -> val
+        self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'B') # A -> &a(b)
+        self.storeReg('C') # &a(b) -> val
+
+    # a = c(d) (d - user input)
+    def storeUnknownArrValAtCell(self, memCell, valArrayCell, valIndexCell):
+        self.setRegToUnknownIndex(valArrayCell, valIndexCell, 'A', 'B') # A -> &c(d)
+        self.loadToReg('B') # B -> val
+        self.setRegValue('A', memCell) # A -> &a
+        self.storeReg('B') # &a -> val 
+
+    # a(b) = c(d) (b, d - user inputs)
+    def storeUnknownArrValAtUnknownCell(self, arrayCell, indexCell, valArrayCell, valIndexCell):
+        self.setRegToUnknownIndex(valArrayCell, valIndexCell, 'A', 'B') # A -> &c(d)
+        self.loadToReg('C') # C -> val
+        self.setRegToUnknownIndex(arrayCell, indexCell, 'A', 'B') # A -> &a(b)
+        self.storeReg('C') # &a(b) -> val
 
 class machine():
     memIndex = 0
@@ -137,11 +171,17 @@ class machine():
             #Value of PIDENTIFIER set to expression value (-1 if unknown - user input)
             self.variables[pidentifier].value = (expressionValue if expressionValue != -1 else -1)
             if (expressionValue != -1):
-                #Storing number to a known memory cell
-                self._out_.storeNum(self.memory[pidentifier], expressionValue)
+                #Storing number from a known memory cell
+                self._out_.storeValAtCell(self.memory[pidentifier], expressionValue)
             else:
-                #Storing number to an unknown memory cell (user input)
-                self._out_.storeNumFromMem(self.memory[pidentifier], self.getExpressionAddress(expression))
+                typeOfValue = expression[0]
+                pidentifierValue = expression[1]
+                if typeOf == 'integer':
+                    #Storing number from an unknown memory cell (user input)
+                    self._out_.storeUnknownValAtCell(self.memory[pidentifier], self.memory[pidentifierValue])
+                elif typeOf == 'integerArray':
+                    pidentifierIndex = expression[2][1]
+                    self._out_.storeUnknownArrValAtCell(self.memory[pidentifier], self.memory[pidentifierValue], self.memory[pidentifierValueIndex])
 
     def assignArray(self, params):
         identifier = params[1]
@@ -167,6 +207,14 @@ class machine():
             elif arrIndexVal == -1:
                 arrIndexName = arrIndex[1]
                 self._out_.loadFromMemToReg('B', self.memory[arrIndexName])
+                self.variables[pidentifier].value[arrIndexVal] = (expressionValue if expressionValue != -1 else -1)
+                if (expressionValue != -1):
+                    #Storing number to a known memory cell
+                    self._out_.storeNum(self.memory[pidentifier] + arrIndexVal, expressionValue)
+                else:
+                    #Storing number to an unknown memory cell (user input)
+                    self._out_.storeNumFromMem(self.memory[pidentifier], self.getExpressionAddress(expression))
+
 
                 pass
             #Index out of bounds

@@ -1,6 +1,6 @@
 DECLARE 
-    a(0:10); b;
+    a; b; c(0:10); 
 IN
     READ b;
-    a(b) := 1;
+    a := b;
 END
