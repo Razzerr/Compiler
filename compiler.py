@@ -18,4 +18,5 @@ if __name__ == '__main__':
     else:
         while(True):
             data = input("input> ")
-            print(parser.parse(lexer.tokenize(data)))
+            for i in lexer.tokenize(data):
+                print(i)

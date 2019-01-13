@@ -19,6 +19,8 @@ class lex(Lexer):
     ignore_newline = r'\n'
     ignore_comment = r'\[[^\]]*\]'
 
+    # Needed!
+    DOWNTO = r'DOWNTO'
     #Mathematical statements
     PLUS = r'\+'
     MINUS = r'-'
@@ -48,7 +50,6 @@ class lex(Lexer):
     ENDFOR = r'ENDFOR'
     FOR = r'FOR'
     FROM = r'FROM'
-    DOWNTO = r'DOWNTO'
     TO = r'TO'
     #IO statements
     READ = r'READ'

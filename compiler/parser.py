@@ -56,11 +56,11 @@ class bison(Parser):
 
     @_('FOR PIDENTIFIER FROM value TO value DO commands ENDFOR')
     def command(self, p):
-        return ('forTo', ('integer', p[2], p.lineno), p.value0, p.value1, p.commands)
+        return ('forTo', ('assign', ('integer', p[1], p.lineno), p.value0), ('assign', ('integer', p[1] + 'End', p.lineno), p.value1), p.commands)
 
     @_('FOR PIDENTIFIER FROM value DOWNTO value DO commands ENDFOR')
     def command(self, p):
-        return ('forDownto', ('integer', p[2], p.lineno), p.value0, p.value1, p.commands)
+        return ('forDownTo', ('assign', ('integer', p[1], p.lineno), p.value0), ('assign', ('integer', p[1] + 'End', p.lineno), p.value1), p.commands)
 
     @_('READ identifier SEMICOLON')
     def command(self, p):
