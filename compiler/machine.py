@@ -133,6 +133,7 @@ class machine():
         self.parseTree = parseTree
         self.machineCode = ''
         self.labels = 0
+        print(parseTree)
 
         # Declarations
         for i in parseTree[1]:
@@ -159,6 +160,7 @@ class machine():
             print(line)
 
     def commandHandler(self, params):
+        print(params)
         return getattr(self, params[0])(params)
 
     def genLabel(self):
@@ -268,6 +270,31 @@ class machine():
         self._out_.code += [label1 + ':']
         self.commands(commands2)
         self._out_.code += [label2 + ':']
+
+    def whileDo(self, params):
+        condition = params[1]
+        commands = params[2]
+        regRes = 'B'
+        labelEnd = self.genLabel()
+        labelLoop = self.genLabel()
+
+        self._out_.code += [labelLoop + ':']
+        self.condToReg(condition, regRes, 'C')
+        self._out_.code += ['JZERO ' + regRes + ' ' + labelEnd]
+        self.commands(commands)
+        self._out_.code += ['JUMP ' + labelLoop]
+        self._out_.code += [labelEnd + ':']
+
+    def doWhile(self, params):
+        condition = params[2]
+        commands = params[1]
+        regRes = 'B'
+        labelLoop = self.genLabel()
+
+        self._out_.code += [labelLoop + ':']
+        self.commands(commands)
+        self.condToReg(condition, regRes, 'C')
+        self._out_.code += ['JZERO ' + regRes + ' ' + labelLoop]  
 
     def assign(self, params):
         identifier = params[1]
