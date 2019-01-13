@@ -1,5 +1,7 @@
 DECLARE 
-    a;
+    a; b;
 IN
-    a := 2/2;
+    WHILE a>0 DO
+        a := a+1;
+    ENDWHILE
 END

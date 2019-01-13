@@ -71,15 +71,11 @@ class outputCode():
         self.code += ['JUMP ' + l1]
         self.code += [l2 + ":"]
 
-    def greaterEqual(self, reg1, reg2):
-        self.code += ['INC ' + reg1]
-        self.code += ['SUB ' + reg1 + " " + reg2]
-
     def divideRegByReg(self, regDiv, regd, regQuo, regTemp, l1, l2, l3):
         self.code += ['JZERO ' + regd + ' ' + l3]
         self.code += [l1 + ':']
         self.code += ['COPY ' + regTemp + ' ' + regDiv]
-        self.greaterEqual(regTemp, regd)
+        self.greater(regTemp, regd)
         self.code += ['JZERO ' + regTemp + ' ' + l2]
         self.code += ['INC ' + regQuo]
         self.code += ['SUB ' + regDiv + ' ' + regd]
@@ -88,6 +84,41 @@ class outputCode():
         self.code += ['SUB ' + regDiv + ' ' + regDiv]
         self.code += ['SUB ' + regQuo + ' ' + regQuo]
         self.code += [l2 + ':']
+
+    # Logical statements - if 0 in reg 1 then false
+    def greaterEqual(self, reg1, reg2):
+        self.code += ['INC ' + reg1]
+        self.code += ['SUB ' + reg1 + ' ' + reg2]
+
+    def greater(self, reg1, reg2):
+        self.code += ['SUB ' + reg1 + ' ' + reg2]
+
+    def lesserEqual(self, reg1, reg2):
+        self.code += ['INC ' + reg2]
+        self.code += ['SUB ' + reg2 + " " + reg1]
+        self.code += ['COPY ' + reg1 + ' ' + reg2]
+
+    def lesser(self, reg1, reg2):
+        self.code += ['SUB ' + reg2 + " " + reg1]
+        self.code += ['COPY ' + reg1 + ' ' + reg2]
+
+    def equal(self, reg1, reg2, regTemp, l1, l2):
+        self.code += ['COPY ' + regTemp + ' ' + reg1]
+        self.greaterEqual(reg1, reg2)
+        self.code += ['JZERO ' + reg1 + ' ' + l1]
+        self.code += ['JUMP ' + l2]
+        self.code += [l1]
+        self.code += ['COPY ' + reg1 + ' ' + regTemp]
+        self.lesserEqual(reg1, reg2)
+        self.code += [l2]
+
+    def notEqual(self, reg1, reg2, regTemp, l1):
+        self.code += ['COPY ' + regTemp + ' ' + reg1]
+        self.greater(reg1, reg2)
+        self.code += ['JZERO ' + reg1 + ' ' + l1]
+        self.code += ['COPY ' + reg1 + ' ' + regTemp]
+        self.lesser(reg1, reg2)
+        self.code += [l1]
 
 
 class machine():
@@ -120,9 +151,7 @@ class machine():
                 self.memIndex += indexHigh - indexLow + 1
 
         #Program commands
-        for i in parseTree[2]:
-            self.commandHandler(i)
-
+        self.commands(parseTree[2])
 
         self._out_.code += ['HALT']
 
@@ -135,6 +164,10 @@ class machine():
     def genLabel(self):
         self.labels += 1
         return 'label' + str(self.labels)
+
+    def commands(self, array):
+        for i in array:
+            self.commandHandler(i)
 
     #@TODO offset
     def tokenToReg(self, token, regOut):
@@ -187,10 +220,56 @@ class machine():
             self.tokenToReg(token[2], 'H')
             self._out_.divideRegByReg('G', 'H', 'F', regOut, self.genLabel(), self.genLabel(), self.genLabel())
 
+    def condToReg(self, token, reg1, reg2):
+        print(token)
+        typeOf = token[0]
+        value1 = token[1]
+        value2 = token[2]
 
+        self.tokenToReg(value1, reg1)
+        self.tokenToReg(value2, reg2)
+
+        if typeOf == 'equal':
+            self._out_.equal(reg1, reg2, 'H', self.genLabel(), self.genLabel())
+        elif typeOf == 'notEqual':
+            self._out_.notEqual(reg1, reg2, 'H', self.genLabel())
+        elif typeOf == 'greaterThan':
+            self._out_.greater(reg1, reg2)
+        elif typeOf == 'greaterEqual':
+            self._out_.greaterEqual(reg1, reg2)
+        elif typeOf == 'lesserThan':
+            self._out_.lesser(reg1, reg2)
+        elif typeOf == 'lesserEqual':
+            self._out_.lesserEqual(reg1, reg2)
+
+    def ifThen(self, params):
+        condition = params[1]
+        commands = params[2]
+        regRes = 'B'
+        label = self.genLabel()
+
+        self.condToReg(condition, regRes, 'C')
+        self._out_.code += ['JZERO ' + regRes + ' ' + label]
+        self.commands(commands)
+        self._out_.code += [label + ':']
+    
+    def ifThenElse(self, params):
+        condition = params[1]
+        commands1 = params[2]
+        commands2 = params[3]
+        regRes = 'B'
+        label1 = self.genLabel()
+        label2 = self.genLabel()
+
+        self.condToReg(condition, regRes, 'C')
+        self._out_.code += ['JZERO ' + regRes + ' ' + label1]
+        self.commands(commands1)
+        self._out_.code += ['JUMP ' + label2]
+        self._out_.code += [label1 + ':']
+        self.commands(commands2)
+        self._out_.code += [label2 + ':']
 
     def assign(self, params):
-        print(params)
         identifier = params[1]
 
         typeOfIdentifier = identifier[0]

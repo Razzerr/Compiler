@@ -114,9 +114,3 @@ class bison(Parser):
     @_('PIDENTIFIER LPAREN NUMBER RPAREN')
     def identifier(self, p):
         return ('integerArray', p[0], ('value', p[2]), p.lineno)
-
-
-
-    
-    
-
