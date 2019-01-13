@@ -1,5 +1,5 @@
 DECLARE
-    a(0:1); b;
+    a; b;
 IN
-    a(b) := a(b);
+    a := 12;
 END

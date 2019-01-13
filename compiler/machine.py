@@ -21,9 +21,19 @@ class outputCode():
     #INC X * val
     def setRegValue(self, reg, val):
         self.clearReg(reg)
-        while val > 0:
-            self.code += ["INC " + reg]
-            val -= 1
+        tempCode = []
+
+        while val > 10:
+            if val%2==0:
+                val = val/2
+                tempCode += ['ADD ' + reg + ' ' + reg]
+            else:
+                val  -= 1
+                tempCode += ['INC ' + reg]
+
+        self.code += ["INC " + reg] * int(val)
+        self.code += tempCode[::-1]
+
 
     def storeReg(self, reg):
         self.code += ['STORE ' + reg]
@@ -291,12 +301,18 @@ class machine():
         regRes = 'B'
         labelEnd = self.genLabel()
         labelLoop = self.genLabel()
-
+        
+        self._out_.code += ['# \/ DEBUG: Start of while loop. Loop label - ' + labelLoop]
         self._out_.code += [labelLoop + ':']
+        self._out_.code += ['# \/ DEBUG: Condition result to register ' + regRes]
         self.condToReg(condition, regRes, 'C')
+        self._out_.code += ['# \/ DEBUG: Jump if condition not met to ' + labelEnd]
         self._out_.code += ['JZERO ' + regRes + ' ' + labelEnd]
+        self._out_.code += ['# \/ DEBUG: Commands']
         self.commands(commands)
+        self._out_.code += ['# \/ DEBUG: Jump back to loop label - ' + labelLoop]
         self._out_.code += ['JUMP ' + labelLoop]
+        self._out_.code += ['# \/ DEBUG: End of While loop']
         self._out_.code += [labelEnd + ':']
 
     def doWhile(self, params):
