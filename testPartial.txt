@@ -1,5 +1,9 @@
 DECLARE
     c; a(2:4);
 IN
-    a(c) := a(c);
+    IF c>0 THEN
+        c := c/2;
+    ELSE
+        WRITE 1;
+    ENDIF
 END
