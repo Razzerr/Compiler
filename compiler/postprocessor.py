@@ -27,6 +27,6 @@ class postprocessor():
         index = 0
         for i in self.code:
             if 'label' in i:
-                label = i[-6:]
-                self.code[index] = i.replace(label, str(labels[label]))
+                label = i[i.index("label"):]
+                self.code[index] = i.replace(label, str(labels[label])).strip()
             index += 1
