@@ -109,29 +109,45 @@ class outputCode():
     def getToReg(self, reg):
         self.code += ['GET ' + reg]
 
-    # reg1 - iterator
-    def multiplyRegByrReg(self, reg1, reg2, regRes, l1, l2):
-        self.clearReg(regRes)
-        self.code += [l1 + ":"]
-        self.code += ["JZERO " + reg1 + " " + l2]
-        self.addToRegFromReg(regRes, reg2)
-        self.code += ['DEC ' + reg1]
-        self.code += ['JUMP ' + l1]
-        self.code += [l2 + ":"]
-
-    def divideRegByReg(self, regDiv, regd, regQuo, regTemp, l1, l2, l3):
-        self.code += ['JZERO ' + regd + ' ' + l3]
+    def multiplyRegByReg(self, reg1, reg2, regRes, l1, l2, l3, l4):
+        self.code += ['SUB ' + regRes + ' ' + regRes]
         self.code += [l1 + ':']
-        self.code += ['COPY ' + regTemp + ' ' + regDiv]
-        self.greater(regTemp, regd)
-        self.code += ['JZERO ' + regTemp + ' ' + l2]
-        self.code += ['INC ' + regQuo]
-        self.code += ['SUB ' + regDiv + ' ' + regd]
+        self.code += ['JZERO ' + reg2 + ' ' + l4]
+        self.code += ['JODD ' + reg2 + ' ' + l3]
+        self.code += [l2 + ':']
+        self.code += ['HALF ' + reg2]
+        self.code += ['ADD ' + reg1 + ' ' + reg1]
         self.code += ['JUMP ' + l1]
         self.code += [l3 + ':']
-        self.code += ['SUB ' + regDiv + ' ' + regDiv]
-        self.code += ['SUB ' + regQuo + ' ' + regQuo]
+        self.code += ['ADD ' + regRes + ' ' + reg1]
+        self.code += ['JUMP ' + l2]
+        self.code += [l4 + ':']
+
+    def divideRegByReg(self, regDIV, regd, regRes, regK, regTemp, l1, l2, l3, l4):
+        self.clearReg(regK)
+        self.code += ['INC ' + regK]
+        self.clearReg(regRes)
+        self.code += [l1 + ':']
+        self.code += ['COPY ' + regTemp + ' ' + regDIV]
+        self.code += ['INC ' + regTemp]
+        self.code += ['SUB ' + regTemp + ' ' + regd]
+        self.code += ['JZERO ' + regTemp + ' ' + l2]
+        self.code += ['ADD ' + regd + ' ' + regd]
+        self.code += ['ADD ' + regK + ' ' + regK]
+        self.code += ['JUMP ' + l1]
         self.code += [l2 + ':']
+        self.code += ['JZERO ' + regK + ' ' + l4]
+        self.code += ['COPY ' + regTemp + ' ' + regDIV]
+        self.code += ['INC ' + regTemp]
+        self.code += ['SUB ' + regTemp + ' ' + regd]
+        self.code += ['JZERO ' + regTemp + ' ' + l3]
+        self.code += ['ADD ' + regRes + ' ' + regK]
+        self.code += ['SUB ' + regDIV + ' ' + regd]
+        self.code += [l3 + ':']
+        self.code += ['HALF ' + regK]
+        self.code += ['HALF ' + regd]
+        self.code += ['JUMP ' + l2]
+        self.code += [l4 + ':']
 
     # Logical statements - if 0 in reg 1 then false
     def greaterEqual(self, reg1, reg2):
@@ -230,7 +246,7 @@ class machine():
         return 'label' + str(self.labels)
 
     #@TODO offset
-    def tokenToReg(self, token, reg='B', regTemp1='C', regTemp2='D', regTemp3='A'):
+    def tokenToReg(self, token, reg='B', regTemp1='C', regTemp2='D', regTemp3='E', regTemp4='F'):
         typeOf = token[0]
         if typeOf == 'value':
             value = int(token[1])
@@ -268,30 +284,32 @@ class machine():
         elif typeOf == 'mul':
             self.tokenToReg(token[1], regTemp2)
             self.tokenToReg(token[2], regTemp1)
-            self._out_.multiplyRegByrReg(regTemp2, regTemp1, reg, self.genLabel(), self.genLabel())
+            self._out_.multiplyRegByReg(regTemp2, regTemp1, reg, self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
 
         elif typeOf == 'div':
             self.tokenToReg(token[1], regTemp2)
             self.tokenToReg(token[2], regTemp1)
-            self._out_.divideRegByReg(regTemp2, regTemp1, reg, regTemp3, self.genLabel(), self.genLabel(), self.genLabel())
+            self._out_.divideRegByReg(regTemp1, regTemp2, reg, regTemp3, regTemp4,
+                self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
 
         elif typeOf == 'mod':
             self.tokenToReg(token[1], regTemp2)
             self.tokenToReg(token[2], regTemp1)
-            self._out_.divideRegByReg(regTemp2, regTemp1, regTemp3, reg, self.genLabel(), self.genLabel(), self.genLabel())
+            self._out_.divideRegByReg(reg, regTemp1, regTemp2, regTemp3, regTemp4, 
+                self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
 
-    def condToReg(self, token, reg1, reg2):
+    def condToReg(self, token, reg1='B', reg2='C', regTemp1='D', regTemp2='E'):
         typeOf = token[0]
         value1 = token[1]
         value2 = token[2]
 
-        self.tokenToReg(value1, reg1)
-        self.tokenToReg(value2, reg2)
+        self.tokenToReg(value1, reg1, regTemp1, regTemp2)
+        self.tokenToReg(value2, reg2, regTemp1, regTemp2)
 
         if typeOf == 'equal':
-            self._out_.equal(reg1, reg2, 'H', self.genLabel(), self.genLabel())
+            self._out_.equal(reg1, reg2, regTemp1, self.genLabel(), self.genLabel())
         elif typeOf == 'notEqual':
-            self._out_.notEqual(reg1, reg2, 'H', self.genLabel())
+            self._out_.notEqual(reg1, reg2, regTemp1, self.genLabel())
         elif typeOf == 'greaterThan':
             self._out_.greater(reg1, reg2)
         elif typeOf == 'greaterEqual':
