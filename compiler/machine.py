@@ -203,8 +203,7 @@ class machine():
 
     def __init__(self, parseTree):
         self.parseTree = parseTree
-        self.labels = 0
-
+        self.labels = 0 
         # Declarations
         if parseTree[1] != None:
             for i in parseTree[1]:

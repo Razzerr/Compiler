@@ -1,69 +1,9 @@
 import sys
 
-class valueType():
-    def __init__(self, lineNo):
-        self.typeOf = 'integer'
-        self.lineNo = lineNo
-        self.initialized = False
-        self.forFor = False
-
-class arrayType():
-    def __init__(self, indexLow, indexHigh, lineNo):
-        self.typeOf = 'integerArray'
-        self.indexLow = indexLow
-        self.indexHigh = indexHigh
-        self.lineNo = lineNo
-        self.initialized = False
-
-class errors():
-    def __init__(self):
-        self.errorOccured = False
-
-    def doubleDeclaration(self, pidentifier, lineNo, lineOrgNo):
-        print("[ERROR] Variable of the same name already declared!\n" +
-                "\tTrying to declare '" + pidentifier + "' at line " + str(lineNo) + ".\n" +
-                "\tExisting variable '" + pidentifier + "' at line " + str(lineOrgNo) + ".")
-        self.errorOccured = True
-
-    def wrongIndexing(self, pidentifier, indexLow, indexHigh, lineNo):
-        print("[ERROR] Indices of array '" + pidentifier + "' wrongly declared!\n" +
-                "\tGiven indices from " + str(indexLow) + " to " + str(indexHigh) + " at line " + str(lineNo) + ".")
-        self.errorOccured = True
-
-    def undeclaredVariable(self, pidentifier, lineNo):
-        print("[ERROR] Variable not decalred!\n"+
-                "\tTrying to access variable '" + pidentifier + "' at line " + str(lineNo) + ".")
-        self.errorOccured = True
-
-    def uninitializedVariable(self, pidentifier, lineNo):
-        print("[ERROR] Variable not initialized!\n"+
-                "\tTrying to get value of variable '" + pidentifier + "' at line " + str(lineNo) + ".")
-        self.errorOccured = True
-
-    def outOfBounds(self, arrayIdentifier, index, lineNo):
-        print("[ERROR] Index out of bounds!\n"+
-                "\tTrying to access index " + str(index) + " of array '" + arrayIdentifier + "' at line " + str(lineNo) + ".")
-        self.errorOccured = True
-
-    def wrongTypeReference(self, arrayIdentifier, typeOf, typeOfCorrect, lineNo):
-        print("[ERROR] Wrong reference type!\n" + 
-                "\tTrying to access '" + arrayIdentifier + "' of type '" + typeOfCorrect + "' as type '" + typeOf + "' at line " + str(lineNo) + ".")
-        self.errorOccured = True
-
-    def tryingToOverwriteIterator(self, pidentifier, lineNo):
-        print("[ERROR] Trying to overwrite for loop iterator!\n" + 
-                "\tTrying to overwrite iterator '" + pidentifier + "' at line " + str(lineNo) + ".")
-        self.errorOccured = True
-
-class warnings():
-    def noDeclaredVariables():
-        print("[HINT] No variables were declared")
-    
-
-class errorMachine():
+class optimiserMachine():
+    memIndex = 0
+    memory = []
     variables = {}
-    
-    _warning_ = warnings()
 
     def __init__(self, parseTree):
         self.parseTree = parseTree
@@ -83,27 +23,23 @@ class errorMachine():
                     indexHigh = int(i[2][1][1])
                     self.declareArray(pidentifier, indexLow, indexHigh, lineNo)
                 
-        else:
-            self._warning_.noDeclaredVariables()
+        
 
         #Program commands
         self.commands(parseTree[2])
 
     def declareInt(self, pidentifier, lineNo):
-        if pidentifier in self.variables:
-            self._error_.doubleDeclaration(pidentifier, lineNo, self.variables[pidentifier].lineNo)
-        else:
-            self.variables[pidentifier] = valueType(lineNo)
+        self.variables[pidentifier] = self.memIndex
+        self.memory += None
+        self.memIndex += 1
 
     def declareArray(self, pidentifier, indexLow, indexHigh, lineNo):
-        if pidentifier in self.variables:
-            self._error_.doubleDeclaration(pidentifier, lineNo, self.variables[pidentifier].lineNo)
-        elif indexLow > indexHigh:
-            self._error_.wrongIndexing(pidentifier, indexLow, indexHigh, lineNo)
-        else:
-            self.variables[pidentifier] = arrayType(indexLow, indexHigh, lineNo)
+        self.variables[pidentifier] = self.memIndex
+        self.memory += [None] * (indexHigh - indexLow + 1 + 1)
+        self.memIndex += indexHigh - indexLow + 1 + 1 # + place for offset
 
     def undeclareInt(self, pidentifier):
+        self.memory[self.variables[pidentifier]] = None
         self.variables.__delitem__(pidentifier)
 
     def commands(self, array):
@@ -114,77 +50,75 @@ class errorMachine():
         return getattr(self, params[0])(params)
 
     #@TODO offset
-    def tokenToReg(self, token):
+    def tokenToVal(self, token):
         typeOf = token[0]
         if typeOf == 'value':
             value = int(token[1])
+            return value
 
         elif typeOf == 'integer':
-            lineNo = token[2]
             pidentifier = token[1]
-
-            if pidentifier not in self.variables:
-                self._error_.undeclaredVariable(pidentifier, lineNo)
-
-            else:
-                if not self.variables[pidentifier].initialized:
-                    self._error_.uninitializedVariable(pidentifier, lineNo)
-
-                if self.variables[pidentifier].typeOf != 'integer':
-                    self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
-
+            return self.memory[self.variables[pidentifier]]
             
         elif typeOf == 'integerArray':
             arrayIdentifier = token[1]
             arrayIndex = token[2]
             typeOfIndex = arrayIndex[0]
-            lineNo = token[3]
 
-            if arrayIdentifier not in self.variables:
-                self._error_.undeclaredVariable(arrayIdentifier, lineNo)
+            if typeOfIndex == 'value':
+                index = int(arrayIndex[1])
+                indexLow = int(self.variables[arrayIdentifier].indexLow)
+                return self.memory[self.variables[arrayIdentifier] + index - indexLow + 1]
 
-            elif self.variables[arrayIdentifier].typeOf != 'integerArray':
-                self._error_.wrongTypeReference(arrayIdentifier, 'integerArray', self.variables[arrayIdentifier].typeOf, lineNo)
-            else:
-                if typeOfIndex == 'value':
-                    index = int(arrayIndex[1])
-                    indexLow = int(self.variables[arrayIdentifier].indexLow)
-                    indexHigh = int(self.variables[arrayIdentifier].indexHigh)
-
-                    if index > indexHigh or index < indexLow:
-                        self._error_.outOfBounds(arrayIdentifier, index, lineNo)
-
-                elif typeOfIndex == 'integer':
-                    pidentifier = arrayIndex[1]
-
-                    if pidentifier not in self.variables:
-                        self._error_.undeclaredVariable(pidentifier, lineNo)
-                    else:
-                        if not self.variables[pidentifier].initialized:
-                            self._error_.uninitializedVariable(pidentifier, lineNo)
-
-                        if self.variables[pidentifier].typeOf != 'integer':
-                            self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
+            elif typeOfIndex == 'integer':
+                pidentifier = arrayIndex[1]
+                indexLow = int(self.variables[arrayIdentifier].indexLow)
+                index = int(self.memory[self.variables[pidentifier]])
+                if index == -1:
+                    return -1
+                else:
+                    return self.memory[self.variables[arrayIdentifier] + index - indexLow +1]
+                    
         
         elif typeOf == 'add':
-            self.tokenToReg(token[1])
-            self.tokenToReg(token[2])
+            val1 = self.tokenToReg(token[1])
+            val2 = self.tokenToReg(token[2])
+            if val1 == -1 or val2 == -1:
+                return -1
+            else:
+                return val1+val2
 
         elif typeOf == 'sub':
-            self.tokenToReg(token[1])
-            self.tokenToReg(token[2])
+            val1 = self.tokenToReg(token[1])
+            val2 = self.tokenToReg(token[2])
+            if val1 == -1 or val2 == -1:
+                return -1
+            else:
+                return val1-val2
 
         elif typeOf == 'mul':
-            self.tokenToReg(token[1])
-            self.tokenToReg(token[2])
+            val1 = self.tokenToReg(token[1])
+            val2 = self.tokenToReg(token[2])
+            if val1 == -1 or val2 == -1:
+                return -1
+            else:
+                return val1*val2
 
         elif typeOf == 'div':
-            self.tokenToReg(token[1])
-            self.tokenToReg(token[2])
+            val1 = self.tokenToReg(token[1])
+            val2 = self.tokenToReg(token[2])
+            if val1 == -1 or val2 == -1:
+                return -1
+            else:
+                return val1/val2
 
         elif typeOf == 'mod':
-            self.tokenToReg(token[1])
-            self.tokenToReg(token[2])
+            val1 = self.tokenToReg(token[1])
+            val2 = self.tokenToReg(token[2])
+            if val1 == -1 or val2 == -1:
+                return -1
+            else:
+                return val1%val2
 
     def condToReg(self, token):
         value1 = token[1]
@@ -270,47 +204,33 @@ class errorMachine():
 
         expression = params[2]
 
-        self.tokenToReg(expression)
-
-        if pidentifier not in self.variables:
-            self._error_.undeclaredVariable(pidentifier, lineNo)   
+        wart = self.tokenToVal(expression)
 
         elif typeOfIdentifier == 'integer':   
-            if self.variables[pidentifier].typeOf != 'integer':
-                self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
-            else:
-                if self.variables[pidentifier].forFor:
-                    self._error_.tryingToOverwriteIterator(pidentifier, lineNo)
-                else:
-                    self.variables[pidentifier].initialized = True
-
+            self.memory[self.variables[pidentifier]] = wart
+            
         elif typeOfIdentifier == 'integerArray':
             index = identifier[2]
             indexType = index[0]
-
-            if self.variables[pidentifier].typeOf != 'integerArray':
-                self._error_.wrongTypeReference(pidentifier, 'integerArray', self.variables[pidentifier].typeOf, lineNo)
 
             elif indexType == 'value':
                 indexValue = int(index[1])
                 indexLow = int(self.variables[pidentifier].indexLow)
                 indexHigh = int(self.variables[pidentifier].indexHigh)
 
-                if indexValue > indexHigh or indexValue < indexLow:
-                    self._error_.outOfBounds(pidentifier, indexValue, lineNo)
+                self.memory[self.variables[pidentifier] + indexValue - indexLow + 1] = wart
 
             elif indexType == 'integer':
                 indexIdentifier = index[1]
+                indexLow = int(self.variables[pidentifier].indexLow)
+                indexHigh = int(self.variables[pidentifier].indexHigh)
 
-                if indexIdentifier not in self.variables:
-                    self._error_.undeclaredVariable(indexIdentifier, lineNo)
-
+                index = int(self.memory[self.variables[indexIdentifier]])
+                if index == -1:
+                    for i in range(indexLow, indexHigh+1):
+                        self.memory[self.variables[arrayIdentifier] + i - indexLow + 1] = -1
                 else:
-                    if not self.variables[indexIdentifier].initialized:
-                        self._error_.uninitializedVariable(indexIdentifier, lineNo)
-
-                    if self.variables[indexIdentifier].typeOf != 'integer':
-                        self._error_.wrongTypeReference(indexIdentifier, 'integer', self.variables[indexIdentifier].typeOf, lineNo)
+                    self.memory[self.variables[arrayIdentifier] + index - indexLow + 1] = wart
 
     def read(self, params):
         lineNo = params[2]
