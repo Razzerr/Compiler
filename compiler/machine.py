@@ -1,15 +1,5 @@
 import sys
 
-class valueType():
-    def __init__(self):
-        self.typeOf = 'intiger'
-
-class arrayType():
-    def __init__(self, indexLow, indexHigh):
-        self.typeOf = 'intigerArray'
-        self.indexLow = indexLow
-        self.indexHigh = indexHigh
-
 class outputCode():
     def __init__(self):
         self.code = []
@@ -208,14 +198,11 @@ class outputCode():
 class machine():
     memIndex = 0
     memory = {}
-    variables = {}
-    registers = {'A': False, 'B': False, 'C': False, 'D': False, 'E': False, 'F': False, 'G': False, 'H': False}
     
     _out_ = outputCode()
 
     def __init__(self, parseTree):
         self.parseTree = parseTree
-        self.machineCode = ''
         self.labels = 0
 
         # Declarations
@@ -240,12 +227,10 @@ class machine():
         #     print(line)
 
     def declareInt(self, pidentifier):
-        self.variables[pidentifier] = valueType()
         self.memory[pidentifier] = self.memIndex
         self.memIndex += 1
 
     def declareArray(self, pidentifier, indexLow, indexHigh):
-        self.variables[pidentifier] = arrayType(indexLow, indexHigh)
         self.memory[pidentifier] = self.memIndex
         self._out_.code += ['# \/ DEBUG: Set offset at memory cell ' + str(self.memIndex)]
         self.memIndex += indexHigh - indexLow + 1 + 1 # + place for offset
@@ -253,7 +238,6 @@ class machine():
         self._out_.storeRegAtCell(self.memory[pidentifier], 'B')
 
     def undeclareInt(self, pidentifier):
-        self.variables.__delitem__(pidentifier)
         self.memory.__delitem__(pidentifier)
 
     def commands(self, array):
@@ -475,7 +459,7 @@ class machine():
 
         expression = params[2]
         
-        if pidentifier in self.variables:
+        if pidentifier in self.memory:
             self.tokenToReg(expression, reg)
             identifierCell = self.memory[pidentifier]
 
@@ -501,7 +485,7 @@ class machine():
         identifierIndex = identifier[2]
 
         arrayCell = self.memory[pidentifier]
-        if pidentifier in self.variables:
+        if pidentifier in self.memory:
             if typeOfIdentifier == 'integerArray':
                 typeOfIndex = identifierIndex[0]
                 if typeOfIndex == 'value':

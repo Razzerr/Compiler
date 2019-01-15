@@ -1,6 +1,7 @@
 import sys
 from compiler.lexer import lex
 from compiler.parser import bison
+from compiler.errors import errorMachine
 from compiler.machine import machine
 from compiler.postprocessor import postprocessor
 
@@ -17,12 +18,14 @@ if __name__ == '__main__':
             print("File not found!")
         finally:
             file.close()
-
+        print("--------------------- Beginning of compilation ---------------------")
         lex_out = lexer.tokenize(data)
         parser_out = parser.parse(lex_out)
+        err = errorMachine(parser_out)
         mach = machine(parser_out)
         post = postprocessor(mach._out_.code)
         # print(parser.parse(lexer.tokenize(data)))
+        print("--------------------- End of compilation ---------------------")
         try:
             file = open(saveFile, 'w')
             for i in post.code:
