@@ -1,19 +1,13 @@
 class postprocessor():
-    def __init__(self, machineCode, pathOut):
+    def __init__(self, machineCode):
         self.code = machineCode
         self.commentsCleanup()
         self.labelAssigner()
-        self.pathOut = pathOut
-        self.pathOut = 'TESTCODE.txt'
 
-
-        with open(self.pathOut, 'w') as f:
-            for i in self.code:
-                f.write("%s\n" % item)
 
     def commentsCleanup(self):
         for i in self.code:
-            if i[0] == '#': 
+            if i[0] == '#':                 
                 self.code.remove(i)
 
     def labelAssigner(self):

@@ -75,7 +75,7 @@ class outputCode():
         self.code += ['ADD A ' + regTemp]
         self.code += ['# \/ DEBUG: Subtracting the offset from array\'s address']
         self.code += ['SUB A ' + reg]
-        self.code += ['INC A ']
+        self.code += ['INC A']
 
     def setRegAToKnownArrayIndex(self, arrayCell, indexVal, reg, regTemp):
         self.code += ['# \/ DEBUG: Store index value at reg ' + regTemp]
@@ -123,10 +123,11 @@ class outputCode():
         self.code += ['JUMP ' + l2]
         self.code += [l4 + ':']
 
-    def divideRegByReg(self, regDIV, regd, regRes, regK, regTemp, l1, l2, l3, l4):
+    def divideRegByReg(self, regDIV, regd, regRes, regK, regTemp, l1, l2, l3, l4, l5):
+        self.clearReg(regRes)
+        self.code += ['JZERO ' + regd + ' ' + l5]
         self.clearReg(regK)
         self.code += ['INC ' + regK]
-        self.clearReg(regRes)
         self.code += [l1 + ':']
         self.code += ['COPY ' + regTemp + ' ' + regDIV]
         self.code += ['INC ' + regTemp]
@@ -147,6 +148,8 @@ class outputCode():
         self.code += ['HALF ' + regK]
         self.code += ['HALF ' + regd]
         self.code += ['JUMP ' + l2]
+        self.code += [l5 + ':']
+        self.clearReg(regDIV)
         self.code += [l4 + ':']
 
     # Logical statements - if 0 in reg 1 then false
@@ -167,22 +170,40 @@ class outputCode():
         self.code += ['COPY ' + reg1 + ' ' + reg2]
 
     def equal(self, reg1, reg2, regTemp, l1, l2):
+        self.code += ['COPY ' + regTemp + ' ' + reg2]
+        self.code += ['SUB ' + regTemp + ' ' + reg1]
+        self.code += ['SUB ' + reg1 + ' ' + reg2]
+        self.code += ['ADD ' + reg1 + ' ' + regTemp]
+        self.code += ['JZERO ' + reg1 + ' ' + l1]
+        self.clearReg(reg1)
+        self.code += ['JUMP ' + l2]
+        self.code += [l1 + ':']
+        self.code += ['INC ' + reg1]
+        self.code += [l2 + ':']
+
+    def equal_old(self, reg1, reg2, regTemp, l1, l2):
         self.code += ['COPY ' + regTemp + ' ' + reg1]
         self.greaterEqual(reg1, reg2)
         self.code += ['JZERO ' + reg1 + ' ' + l1]
         self.code += ['JUMP ' + l2]
-        self.code += [l1]
+        self.code += [l1 + ':']
         self.code += ['COPY ' + reg1 + ' ' + regTemp]
         self.lesserEqual(reg1, reg2)
-        self.code += [l2]
+        self.code += [l2 + ':']
 
     def notEqual(self, reg1, reg2, regTemp, l1):
+        self.code += ['COPY ' + regTemp + ' ' + reg2]
+        self.code += ['SUB ' + regTemp + ' ' + reg1]
+        self.code += ['SUB ' + reg1 + ' ' + reg2]
+        self.code += ['ADD ' + reg1 + ' ' + regTemp]
+
+    def notEqual_old(self, reg1, reg2, regTemp, l1):
         self.code += ['COPY ' + regTemp + ' ' + reg1]
         self.greater(reg1, reg2)
         self.code += ['JZERO ' + reg1 + ' ' + l1]
         self.code += ['COPY ' + reg1 + ' ' + regTemp]
         self.lesser(reg1, reg2)
-        self.code += [l1]
+        self.code += [l1 + ':']
 
 class machine():
     memIndex = 0
@@ -198,16 +219,17 @@ class machine():
         self.labels = 0
 
         # Declarations
-        for i in parseTree[1]:
-            typeOf = i[0]
-            pidentifier = i[1]
-            
-            if typeOf == 'integer':
-                self.declareInt(pidentifier)
-            else:
-                indexLow = int(i[2][0][1])
-                indexHigh = int(i[2][1][1])
-                self.declareArray(pidentifier, indexLow, indexHigh)
+        if parseTree[1] != None:
+            for i in parseTree[1]:
+                typeOf = i[0]
+                pidentifier = i[1]
+                
+                if typeOf == 'integer':
+                    self.declareInt(pidentifier)
+                else:
+                    indexLow = int(i[2][0][1])
+                    indexHigh = int(i[2][1][1])
+                    self.declareArray(pidentifier, indexLow, indexHigh)
 
         #Program commands
         self.commands(parseTree[2])
@@ -282,21 +304,21 @@ class machine():
             self._out_.code += ['SUB ' + reg + regTemp1]
 
         elif typeOf == 'mul':
-            self.tokenToReg(token[1], regTemp2)
-            self.tokenToReg(token[2], regTemp1)
+            self.tokenToReg(token[1], regTemp1, 'E', 'F')
+            self.tokenToReg(token[2], regTemp2, 'E', 'F')
             self._out_.multiplyRegByReg(regTemp2, regTemp1, reg, self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
 
         elif typeOf == 'div':
-            self.tokenToReg(token[1], regTemp2)
-            self.tokenToReg(token[2], regTemp1)
+            self.tokenToReg(token[1], regTemp1, 'E', 'F')
+            self.tokenToReg(token[2], regTemp2, 'E', 'F')
             self._out_.divideRegByReg(regTemp1, regTemp2, reg, regTemp3, regTemp4,
-                self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
+                self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
 
         elif typeOf == 'mod':
-            self.tokenToReg(token[1], regTemp2)
-            self.tokenToReg(token[2], regTemp1)
+            self.tokenToReg(token[1], reg, 'E', 'F')
+            self.tokenToReg(token[2], regTemp1, 'E', 'F')
             self._out_.divideRegByReg(reg, regTemp1, regTemp2, regTemp3, regTemp4, 
-                self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
+                self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel(), self.genLabel())
 
     def condToReg(self, token, reg1='B', reg2='C', regTemp1='D', regTemp2='E'):
         typeOf = token[0]
@@ -424,16 +446,22 @@ class machine():
 
         labelEnd = self.genLabel()
         labelLoop = self.genLabel()
+        labelLastIter = self.genLabel()
 
-        self._out_.code += [labelLoop + ':']
         self._out_.greaterEqual(regRes, 'C')
         self._out_.code += ['JZERO ' + regRes + ' ' + labelEnd]
+        self._out_.code += [labelLoop + ':']
         self.commands(commands)
-        self._out_.setRegToMemCell(self.memory[pidentifierFrom], regRes)
+        self._out_.loadCellToReg(self.memory[pidentifierFrom], regRes)
+        self._out_.code += ['JZERO ' + regRes + ' ' + labelEnd]
         self._out_.code += ['DEC ' + regRes]
         self._out_.code += ['STORE ' + regRes]
-        self._out_.setRegToMemCell(self.memory[pidentifierTo], 'C')
+        self._out_.loadCellToReg(self.memory[pidentifierTo], 'C')
+        self._out_.greater(regRes, 'C')
+        self._out_.code += ['JZERO ' + regRes + ' ' + labelLastIter]
         self._out_.code += ['JUMP ' + labelLoop]
+        self._out_.code += [labelLastIter + ':']
+        self.commands(commands)
         self._out_.code += [labelEnd + ':']
 
         self.undeclareInt(pidentifierFrom)

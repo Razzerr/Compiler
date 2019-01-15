@@ -9,15 +9,29 @@ if __name__ == '__main__':
     parser = bison()
 
     if len(sys.argv) > 1 and 4 > len(sys.argv):
+        saveFile = sys.argv[2]
         try:
-            saveFile = sys.argv[2]
             file = open(sys.argv[1], 'r')
             data = file.read()
-            mach = machine(parser.parse(lexer.tokenize(data)))
-            post = postprocessor(mach._out_.code, saveFile)
-            # print(parser.parse(lexer.tokenize(data)))
         except FileNotFoundError:
             print("File not found!")
+        finally:
+            file.close()
+
+        lex_out = lexer.tokenize(data)
+        parser_out = parser.parse(lex_out)
+        mach = machine(parser_out)
+        post = postprocessor(mach._out_.code)
+        # print(parser.parse(lexer.tokenize(data)))
+        try:
+            file = open(saveFile, 'w')
+            for i in post.code:
+                file.write(i + '\n')
+        except IOError:
+            print("I/O error")
+        finally:
+            file.close()
+            
     else:
         while(True):
             data = input("input> ")
