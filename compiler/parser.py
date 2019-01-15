@@ -36,7 +36,7 @@ class bison(Parser):
 
     @_('identifier ASSIGN expression SEMICOLON')
     def command(self, p):
-        return ('assign', p.identifier, p.expression)
+        return ('assign', p.identifier, p.expression, p.lineno)
     
     @_('IF condition THEN commands ELSE commands ENDIF')
     def command(self, p):
@@ -56,19 +56,19 @@ class bison(Parser):
 
     @_('FOR PIDENTIFIER FROM value TO value DO commands ENDFOR')
     def command(self, p):
-        return ('forTo', ('assign', ('integer', p[1], p.lineno), p.value0), ('assign', ('integer', p[1] + 'End', p.lineno), p.value1), p.commands)
+        return ('forTo', ('assign', ('integer', p[1], p.lineno), p.value0, p.lineno), ('assign', ('integer', p[1] + 'End', p.lineno), p.value1, p.lineno), p.commands)
 
     @_('FOR PIDENTIFIER FROM value DOWNTO value DO commands ENDFOR')
     def command(self, p):
-        return ('forDownTo', ('assign', ('integer', p[1], p.lineno), p.value0), ('assign', ('integer', p[1] + 'End', p.lineno), p.value1), p.commands)
+        return ('forDownTo', ('assign', ('integer', p[1], p.lineno), p.value0, p.lineno), ('assign', ('integer', p[1] + 'End', p.lineno), p.value1, p.lineno), p.commands)
 
     @_('READ identifier SEMICOLON')
     def command(self, p):
-        return ('read', p.identifier)
+        return ('read', p.identifier, p.lineno)
 
     @_('WRITE value SEMICOLON')
     def command(self, p):
-        return ('write', p.value)
+        return ('write', p.value, p.lineno)
 
     @_('value')
     def expression(self, p):

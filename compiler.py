@@ -21,19 +21,23 @@ if __name__ == '__main__':
         print("--------------------- Beginning of compilation ---------------------")
         lex_out = lexer.tokenize(data)
         parser_out = parser.parse(lex_out)
+        if parser_out == None:
+            exit()
+
         err = errorMachine(parser_out)
-        mach = machine(parser_out)
-        post = postprocessor(mach._out_.code)
+        if not err._error_.errorOccured:
+            mach = machine(parser_out)
+            post = postprocessor(mach._out_.code)
+            try:
+                file = open(saveFile, 'w')
+                for i in post.code:
+                    file.write(i + '\n')
+            except IOError:
+                print("I/O error")
+            finally:
+                file.close()
         # print(parser.parse(lexer.tokenize(data)))
         print("--------------------- End of compilation ---------------------")
-        try:
-            file = open(saveFile, 'w')
-            for i in post.code:
-                file.write(i + '\n')
-        except IOError:
-            print("I/O error")
-        finally:
-            file.close()
             
     else:
         while(True):

@@ -2,48 +2,58 @@ import sys
 
 class valueType():
     def __init__(self, lineNo):
-        self.typeOf = 'intiger'
+        self.typeOf = 'integer'
         self.lineNo = lineNo
         self.initialized = False
         self.forFor = False
 
 class arrayType():
     def __init__(self, indexLow, indexHigh, lineNo):
-        self.typeOf = 'intigerArray'
+        self.typeOf = 'integerArray'
         self.indexLow = indexLow
         self.indexHigh = indexHigh
         self.lineNo = lineNo
-        self.initialized = [False]*(indexHigh-indexLow+1)
+        self.initialized = False
 
 class errors():
+    def __init__(self):
+        self.errorOccured = False
+
     def doubleDeclaration(self, pidentifier, lineNo, lineOrgNo):
         print("[ERROR] Variable of the same name already declared!\n" +
                 "\tTrying to declare '" + pidentifier + "' at line " + str(lineNo) + ".\n" +
                 "\tExisting variable '" + pidentifier + "' at line " + str(lineOrgNo) + ".")
+        self.errorOccured = True
 
     def wrongIndexing(self, pidentifier, indexLow, indexHigh, lineNo):
         print("[ERROR] Indices of array '" + pidentifier + "' wrongly declared!\n" +
                 "\tGiven indices from " + str(indexLow) + " to " + str(indexHigh) + " at line " + str(lineNo) + ".")
+        self.errorOccured = True
 
     def undeclaredVariable(self, pidentifier, lineNo):
         print("[ERROR] Variable not decalred!\n"+
                 "\tTrying to access variable '" + pidentifier + "' at line " + str(lineNo) + ".")
+        self.errorOccured = True
 
     def uninitializedVariable(self, pidentifier, lineNo):
         print("[ERROR] Variable not initialized!\n"+
                 "\tTrying to get value of variable '" + pidentifier + "' at line " + str(lineNo) + ".")
+        self.errorOccured = True
 
     def outOfBounds(self, arrayIdentifier, index, lineNo):
         print("[ERROR] Index out of bounds!\n"+
-                "\tTrying to access index " + str(index) + " of array '" + arrayIdentifier + "' at line " + lineNo + ".")
+                "\tTrying to access index " + str(index) + " of array '" + arrayIdentifier + "' at line " + str(lineNo) + ".")
+        self.errorOccured = True
 
     def wrongTypeReference(self, arrayIdentifier, typeOf, typeOfCorrect, lineNo):
         print("[ERROR] Wrong reference type!\n" + 
-                "Trying to access element of type '" + typeOfCorrect + "' as type '" + typeOf + " at line " + lineNo + ".")
+                "\tTrying to access '" + arrayIdentifier + "' of type '" + typeOfCorrect + "' as type '" + typeOf + "' at line " + str(lineNo) + ".")
+        self.errorOccured = True
 
     def tryingToOverwriteIterator(self, pidentifier, lineNo):
         print("[ERROR] Trying to overwrite for loop iterator!\n" + 
-                "\tTrying to overwrite iterator '" + pidentifier + "' at line " + lineNo + ".")
+                "\tTrying to overwrite iterator '" + pidentifier + "' at line " + str(lineNo) + ".")
+        self.errorOccured = True
 
 class warnings():
     def noDeclaredVariables():
@@ -54,12 +64,11 @@ class errorMachine():
     memIndex = 0
     variables = {}
     
-    _error_ = errors()
     _warning_ = warnings()
 
     def __init__(self, parseTree):
         self.parseTree = parseTree
-
+        self._error_ = errors()
         # Declarations
         if parseTree[1] != None:
             for i in parseTree[1]:
@@ -84,17 +93,16 @@ class errorMachine():
     def declareInt(self, pidentifier, lineNo):
         if pidentifier in self.variables:
             self._error_.doubleDeclaration(pidentifier, lineNo, self.variables[pidentifier].lineNo)
-
-        self.variables[pidentifier] = valueType(lineNo)
+        else:
+            self.variables[pidentifier] = valueType(lineNo)
 
     def declareArray(self, pidentifier, indexLow, indexHigh, lineNo):
         if pidentifier in self.variables:
             self._error_.doubleDeclaration(pidentifier, lineNo, self.variables[pidentifier].lineNo)
-
         elif indexLow > indexHigh:
             self._error_.wrongIndexing(pidentifier, indexLow, indexHigh, lineNo)
-
-        self.variables[pidentifier] = arrayType(indexLow, indexHigh, lineNo)
+        else:
+            self.variables[pidentifier] = arrayType(indexLow, indexHigh, lineNo)
 
     def undeclareInt(self, pidentifier):
         self.variables.__delitem__(pidentifier)
@@ -119,11 +127,12 @@ class errorMachine():
             if pidentifier not in self.variables:
                 self._error_.undeclaredVariable(pidentifier, lineNo)
 
-            if not self.variables[pidentifier].initialized:
-                self._error_.uninitializedVariable(pidentifier, lineNo)
+            else:
+                if not self.variables[pidentifier].initialized:
+                    self._error_.uninitializedVariable(pidentifier, lineNo)
 
-            if self.variables[pidentifier].typeOf != 'integer':
-                self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
+                if self.variables[pidentifier].typeOf != 'integer':
+                    self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
 
             
         elif typeOf == 'integerArray':
@@ -135,31 +144,28 @@ class errorMachine():
             if arrayIdentifier not in self.variables:
                 self._error_.undeclaredVariable(arrayIdentifier, lineNo)
 
-            if self.variables[arrayIdentifier].typeOf != 'integerArray':
+            elif self.variables[arrayIdentifier].typeOf != 'integerArray':
                 self._error_.wrongTypeReference(arrayIdentifier, 'integerArray', self.variables[arrayIdentifier].typeOf, lineNo)
+            else:
+                if typeOfIndex == 'value':
+                    index = int(arrayIndex[1])
+                    indexLow = int(self.variables[arrayIdentifier].indexLow)
+                    indexHigh = int(self.variables[arrayIdentifier].indexHigh)
 
-            elif typeOfIndex == 'value':
-                index = arrayIndex[1]
-                indexLow = self.variables[arrayIdentifier].indexLow
-                indexHigh = self.variables[arrayIdentifier].indexHigh
+                    if index > indexHigh or index < indexLow:
+                        self._error_.outOfBounds(arrayIdentifier, index, lineNo)
 
-                if index > indexHigh or index < indexLow:
-                    self._error_.outOfBounds(arrayIdentifier, index, lineNo)
+                elif typeOfIndex == 'integer':
+                    pidentifier = arrayIndex[1]
 
-                if not self.variables[arrayIdentifier].initialized[index]:
-                    self._error_.uninitializedVariable(arrayIdentifier + '(' + str(index) + ')', lineNo)
+                    if pidentifier not in self.variables:
+                        self._error_.undeclaredVariable(pidentifier, lineNo)
+                    else:
+                        if not self.variables[pidentifier].initialized:
+                            self._error_.uninitializedVariable(pidentifier, lineNo)
 
-            elif typeOfIndex == 'integer':
-                pidentifier = arrayIndex[1]
-
-                if pidentifier not in self.variables:
-                    self._error_.undeclaredVariable(pidentifier, lineNo)
-
-                if not self.variables[pidentifier].initialized:
-                    self._error_.uninitializedVariable(pidentifier, lineNo)
-
-                if self.variables[pidentifier].typeOf != 'integer':
-                    self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
+                        if self.variables[pidentifier].typeOf != 'integer':
+                            self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
         
         elif typeOf == 'add':
             self.tokenToReg(token[1])
@@ -227,8 +233,8 @@ class errorMachine():
 
         commands = params[3]
 
-        self.declareInt(pidentifierFrom)
-        self.declareInt(pidentifierTo)
+        self.declareInt(pidentifierFrom, valueFrom[3])
+        self.declareInt(pidentifierTo, valueTo[3])
         self.assign(valueFrom)
         self.assign(valueTo)
 
@@ -246,8 +252,8 @@ class errorMachine():
 
         commands = params[3]
 
-        self.declareInt(pidentifierFrom)
-        self.declareInt(pidentifierTo)
+        self.declareInt(pidentifierFrom, valueFrom[3])
+        self.declareInt(pidentifierTo, valueTo[3])
         self.assign(valueFrom)
         self.assign(valueTo)
 
@@ -257,6 +263,7 @@ class errorMachine():
         self.undeclareInt(pidentifierTo)
 
     def assign(self, params):
+        lineNo = params[3]
         identifier = params[1]
 
         typeOfIdentifier = identifier[0]
@@ -269,12 +276,14 @@ class errorMachine():
         if pidentifier not in self.variables:
             self._error_.undeclaredVariable(pidentifier, lineNo)   
 
-        if typeOfIdentifier == 'integer':   
+        elif typeOfIdentifier == 'integer':   
             if self.variables[pidentifier].typeOf != 'integer':
                 self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
-
-            if self.variables[pidentifier].forFor:
-                self._error_.tryingToOverwriteIterator(pidentifier, lineNo)
+            else:
+                if self.variables[pidentifier].forFor:
+                    self._error_.tryingToOverwriteIterator(pidentifier, lineNo)
+                else:
+                    self.variables[pidentifier].initialized = True
 
         elif typeOfIdentifier == 'integerArray':
             index = identifier[2]
@@ -283,8 +292,10 @@ class errorMachine():
             if self.variables[pidentifier].typeOf != 'integerArray':
                 self._error_.wrongTypeReference(pidentifier, 'integerArray', self.variables[pidentifier].typeOf, lineNo)
 
-            if indexType == 'value':
+            elif indexType == 'value':
                 indexValue = int(index[1])
+                indexLow = int(self.variables[pidentifier].indexLow)
+                indexHigh = int(self.variables[pidentifier].indexHigh)
 
                 if indexValue > indexHigh or indexValue < indexLow:
                     self._error_.outOfBounds(pidentifier, indexValue, lineNo)
@@ -295,13 +306,15 @@ class errorMachine():
                 if indexIdentifier not in self.variables:
                     self._error_.undeclaredVariable(indexIdentifier, lineNo)
 
-                if not self.variables[indexIdentifier].initialized:
-                    self._error_.uninitializedVariable(indexIdentifier, lineNo)
+                else:
+                    if not self.variables[indexIdentifier].initialized:
+                        self._error_.uninitializedVariable(indexIdentifier, lineNo)
 
-                if self.variables[indexIdentifier].typeOf != 'integer':
-                    self._error_.wrongTypeReference(indexIdentifier, 'integer', self.variables[indexIdentifier].typeOf, lineNo)
+                    if self.variables[indexIdentifier].typeOf != 'integer':
+                        self._error_.wrongTypeReference(indexIdentifier, 'integer', self.variables[indexIdentifier].typeOf, lineNo)
 
     def read(self, params):
+        lineNo = params[2]
         identifier = params[1]
 
         typeOfIdentifier = identifier[0]
@@ -312,13 +325,13 @@ class errorMachine():
         if pidentifier not in self.variables:
             self._error_.undeclaredVariable(pidentifier, lineNo)   
 
-        if typeOfIdentifier == 'integerArray':
+        elif typeOfIdentifier == 'integerArray':
             typeOfIndex = identifierIndex[0]
 
             if self.variables[pidentifier].typeOf != 'integerArray':
                 self._error_.wrongTypeReference(pidentifier, 'integerArray', self.variables[pidentifier].typeOf, lineNo)
 
-            if typeOfIndex == 'value':
+            elif typeOfIndex == 'value':
                 indexValue = int(identifierIndex[1])
                 indexLow = self.variables[pidentifier].indexLow
                 indexHigh = self.variables[pidentifier].indexHigh
@@ -332,18 +345,22 @@ class errorMachine():
                 if indexID not in self.variables:
                     self._error_.undeclaredVariable(indexID, lineNo)
 
-                if not self.variables[indexID].initialized:
-                    self._error_.uninitializedVariable(indexID, lineNo)
+                else:
+                    if not self.variables[indexID].initialized:
+                        self._error_.uninitializedVariable(indexID, lineNo)
 
-                if self.variables[indexID].typeOf != 'integer':
-                    self._error_.wrongTypeReference(indexID, 'integer', self.variables[indexID].typeOf, lineNo)
+                    if self.variables[indexID].typeOf != 'integer':
+                        self._error_.wrongTypeReference(indexID, 'integer', self.variables[indexID].typeOf, lineNo)
 
         elif typeOfIdentifier == 'integer':
             if self.variables[pidentifier].typeOf != 'integer':
                 self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
 
-            if self.variables[pidentifier].forFor:
-                self._error_.tryingToOverwriteIterator(pidentifier, lineNo)
+            else:
+                if self.variables[pidentifier].forFor:
+                    self._error_.tryingToOverwriteIterator(pidentifier, lineNo)
+                else:
+                    self.variables[pidentifier].initialized = True
 
     def write(self, params):
         identifier = params[1]
@@ -354,16 +371,16 @@ class errorMachine():
             pidentifier = identifier[1]
             identifierIndex = identifier[2]
             typeOfIndex = identifierIndex[0]
-
-            lineNo = params[3]
+            
+            lineNo = params[2]
 
             if pidentifier not in self.variables:
                 self._error_.undeclaredVariable(pidentifier, lineNo)
 
-            if self.variables[pidentifier].typeOf != 'integerArray':
+            elif self.variables[pidentifier].typeOf != 'integerArray':
                 self._error_.wrongTypeReference(pidentifier, 'integerArray', self.variables[pidentifier].typeOf, lineNo)
 
-            if typeOfIndex == 'value':
+            elif typeOfIndex == 'value':
                 indexValue = int(identifierIndex[1])
                 indexLow = self.variables[pidentifier].indexLow
                 indexHigh = self.variables[pidentifier].indexHigh
@@ -371,20 +388,18 @@ class errorMachine():
                 if indexValue > indexHigh or indexValue < indexLow:
                     self._error_.outOfBounds(pidentifier, indexValue, lineNo)
 
-                if not self.variables[pidentifier].initialized[indexValue]:
-                    self._error_.uninitializedVariable(pidentifier + '(' + str(indexValue) + ')', lineNo)
-
             elif typeOfIndex == 'integer':
                 indexID = identifierIndex[1]
                 
                 if indexID not in self.variables:
                     self._error_.undeclaredVariable(indexID, lineNo)
 
-                if not self.variables[indexID].initialized:
-                    self._error_.uninitializedVariable(indexID, lineNo)
+                else:
+                    if not self.variables[indexID].initialized:
+                        self._error_.uninitializedVariable(indexID, lineNo)
 
-                if self.variables[indexID].typeOf != 'integer':
-                    self._error_.wrongTypeReference(indexID, 'integer', self.variables[indexID].typeOf, lineNo)
+                    if self.variables[indexID].typeOf != 'integer':
+                        self._error_.wrongTypeReference(indexID, 'integer', self.variables[indexID].typeOf, lineNo)
 
         elif typeOfIdentifier == 'integer':
             pidentifier = identifier[1]
@@ -392,12 +407,12 @@ class errorMachine():
             
             if pidentifier not in self.variables:
                 self._error_.undeclaredVariable(pidentifier, lineNo)
+            else:
+                if not self.variables[pidentifier].initialized:
+                    self._error_.uninitializedVariable(pidentifier, lineNo)
 
-            if not self.variables[pidentifier].initialized:
-                self._error_.uninitializedVariable(pidentifier, lineNo)
-
-            if self.variables[pidentifier].typeOf != 'integer':
-                self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
+                if self.variables[pidentifier].typeOf != 'integer':
+                    self._error_.wrongTypeReference(pidentifier, 'integer', self.variables[pidentifier].typeOf, lineNo)
 
         elif typeOfIdentifier == 'value':
             value = int(identifier[1])
