@@ -15,7 +15,7 @@ class outputCode():
 
         while val > 10:
             if val%2==0:
-                val = val/2
+                val = val//2
                 tempCode += ['ADD ' + reg + ' ' + reg]
             else:
                 val  -= 1
