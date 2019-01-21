@@ -11,7 +11,7 @@ if __name__ == '__main__':
     lexer = lex()
     parser = bison()
 
-    if len(sys.argv) > 1 and 4 > len(sys.argv):
+    if len(sys.argv) == 3:
         saveFile = sys.argv[2]
         try:
             file = open(sys.argv[1], 'r')
@@ -45,10 +45,8 @@ if __name__ == '__main__':
             finally:
                 file.close()
         # print(parser.parse(lexer.tokenize(data)))
-        print("--------------------- End of compilation ---------------------")
+        print("------------------------ End of compilation ------------------------")
             
     else:
-        while(True):
-            data = input("input> ")
-            for i in lexer.tokenize(data):
-                print(i)
+        print("[ERROR] Incorrect usage!")
+        print("\tUsage: python3 compiler.py 'file_in' 'file_out'")
