@@ -1,6 +1,7 @@
-[ t_2 ]
 DECLARE
-    a(0:1); b(0:10);
+    a(0:100); b;
 IN
-    a(0) := 0;
+    FOR i FROM 0 TO 9 DO
+        WRITE i;
+    ENDFOR
 END

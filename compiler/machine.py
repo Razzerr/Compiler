@@ -222,8 +222,6 @@ class machine():
 
         self._out_.code += ['HALT']
 
-        # for line in self._out_.code:
-        #     print(line)
 
     def declareInt(self, pidentifier):
         self.memory[pidentifier] = self.memIndex

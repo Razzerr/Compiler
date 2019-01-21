@@ -1,9 +1,11 @@
 import sys
+import copy
 from compiler.lexer import lex
 from compiler.parser import bison
 from compiler.errors import errorMachine
 from compiler.machine import machine
 from compiler.postprocessor import postprocessor
+from compiler.preoptimiser import optimiserMachine
 
 if __name__ == '__main__':
     lexer = lex()
@@ -23,9 +25,15 @@ if __name__ == '__main__':
         parser_out = parser.parse(lex_out)
         if parser_out == None:
             exit()
-
         err = errorMachine(parser_out)
         if not err._error_.errorOccured:
+            try:
+                parser_out_cp = copy.deepcopy(parser_out)
+                opti = optimiserMachine(parser_out_cp)
+                parser_out = parser_out_cp
+            except Exception as e:
+                pass
+        
             mach = machine(parser_out)
             post = postprocessor(mach._out_.code)
             try:
